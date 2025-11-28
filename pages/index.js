@@ -20,13 +20,8 @@ export default function Babel() {
   useEffect(() => {
     const fetchRoots = async () => {
       try {
-        const { data, error } = await supabase
-          .from('roots')
-          .select('*')
-          .order('id')
-        
+        const { data, error } = await supabase.from('roots').select('*').order('id')
         if (error) throw error
-        
         setPieRoots(data.map(root => ({
           id: root.id.toString(),
           pie: root.pie,
@@ -50,57 +45,79 @@ export default function Babel() {
   }, [])
 
   const toggleSaveRoot = (rootId) => {
-    const newSaved = savedRoots.includes(rootId)
-      ? savedRoots.filter(id => id !== rootId)
-      : [...savedRoots, rootId]
+    const newSaved = savedRoots.includes(rootId) ? savedRoots.filter(id => id !== rootId) : [...savedRoots, rootId]
     setSavedRoots(newSaved)
     localStorage.setItem('babel-saved-roots', JSON.stringify(newSaved))
   }
 
   const filteredRoots = pieRoots.filter(root => {
-    const matchesSearch = root.pie.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         root.meaning.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         root.derivatives.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = root.pie.toLowerCase().includes(searchTerm.toLowerCase()) || root.meaning.toLowerCase().includes(searchTerm.toLowerCase()) || root.derivatives.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesLanguage = filterLanguage === 'all' || root.descendants[filterLanguage]
     return matchesSearch && matchesLanguage
   })
 
-  const displayRoots = activeTab === 'saved' 
-    ? pieRoots.filter(r => savedRoots.includes(r.id))
-    : filteredRoots
+  const displayRoots = activeTab === 'saved' ? pieRoots.filter(r => savedRoots.includes(r.id)) : filteredRoots
 
-  if (loading) {
-    return (
-      <div className="flex h-screen bg-amber-50 items-center justify-center">
-        <div className="text-amber-900 text-xl">Loading roots...</div>
-      </div>
-    )
-  }
+  if (loading) return <div style={{display:'flex',height:'100vh',background:'#fef3c7',alignItems:'center',justifyContent:'center'}}><div style={{color:'#78350f',fontSize:'20px'}}>Loading roots...</div></div>
 
   return (
-    <div className="flex h-screen bg-amber-50">
-      <div className="w-80 bg-yellow-50 border-r border-amber-200 flex flex-col">
-        <div className="p-6 border-b border-amber-200">
-          <h1 className="text-3xl font-serif text-amber-900">Babel</h1>
-          <p className="text-sm text-amber-700 mt-1">Proto-Indo-European</p>
-        </div>
+    <div style={{display:'flex',height:'100vh',background:'#fef3c7'}}>
+      <style jsx>{`
+        .sidebar { width: 320px; background: #fefce8; borderRight: '1px solid #fcd34d'; display: flex; flexDirection: column; }
+        .header { padding: 24px; borderBottom: 1px solid #fcd34d; }
+        .title { fontSize: 30px; fontFamily: serif; color: #78350f; }
+        .subtitle { fontSize: 14px; color: #a16207; marginTop: 4px; }
+        .search-box { padding: 16px; borderBottom: 1px solid #fcd34d; }
+        input, select { width: 100%; padding: 8px 12px; fontSize: 14px; background: white; border: 1px solid #fcd34d; borderRadius: 4px; }
+        input { paddingLeft: 36px; }
+        .nav { padding: 16px; borderBottom: 1px solid #fcd34d; }
+        .nav button { width: 100%; display: flex; alignItems: center; gap: 8px; padding: 8px 12px; fontSize: 14px; background: none; border: none; borderRadius: 4px; cursor: pointer; color: #92400e; }
+        .nav button:hover { background: #fef3c7; }
+        .nav button.active { background: #fef3c7; color: #78350f; }
+        .root-list { flex: 1; overflowY: auto; padding: 16px; }
+        .root-item { width: 100%; textAlign: left; padding: 12px; background: white; border: 1px solid #fcd34d; borderRadius: 8px; marginBottom: 8px; cursor: pointer; }
+        .root-item:hover { borderColor: #fbbf24; }
+        .root-item.selected { background: #fef3c7; borderColor: #fbbf24; }
+        .root-pie { fontSize: 18px; fontFamily: serif; color: #78350f; }
+        .root-meaning { fontSize: 14px; color: #a16207; marginTop: 4px; }
+        .main { flex: 1; overflowY: auto; }
+        .welcome { height: 100%; display: flex; alignItems: center; justifyContent: center; textAlign: center; }
+        .content { maxWidth: 1000px; margin: 0 auto; padding: 32px; }
+        .card { background: white; borderRadius: 8px; border: 1px solid #fcd34d; padding: 32px; }
+        .card h2 { fontSize: 36px; fontFamily: serif; color: #78350f; marginBottom: 8px; }
+        .card p { fontSize: 20px; color: #a16207; }
+        .tag { display: inline-block; marginTop: 8px; padding: 4px 12px; fontSize: 12px; background: #fef3c7; color: #92400e; borderRadius: 16px; }
+        .tree-root { display: flex; flexDirection: column; alignItems: center; marginBottom: 32px; }
+        .tree-node { padding: 12px 24px; background: #fcd34d; border: 2px solid #fbbf24; borderRadius: 8px; fontSize: 24px; fontFamily: serif; color: #78350f; }
+        .tree-line { width: 2px; height: 32px; background: #fbbf24; }
+        .branches { display: grid; gridTemplateColumns: repeat(3, 1fr); gap: 32px; }
+        .branch { display: flex; flexDirection: column; alignItems: center; }
+        .branch-label { padding: 8px 16px; background: #fef3c7; border: 1px solid #fbbf24; borderRadius: 4px; fontSize: 14px; fontWeight: 600; color: #78350f; marginBottom: 16px; }
+        .lang-card { position: relative; padding: 12px; background: white; border: 1px solid #fcd34d; borderRadius: 8px; width: 100%; }
+        .lang-name { fontSize: 12px; color: #a16207; marginBottom: 4px; }
+        .lang-word { fontSize: 18px; fontFamily: serif; color: #78350f; }
+        .help-btn { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; borderRadius: 50%; background: #fef3c7; color: #a16207; border: none; cursor: pointer; fontSize: 12px; fontWeight: bold; }
+        .help-btn:hover { background: #fcd34d; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; alignItems: center; justifyContent: center; zIndex: 50; padding: 32px; }
+        .modal-content { background: white; borderRadius: 8px; border: 2px solid #fbbf24; maxWidth: 800px; width: 100%; padding: 32px; position: relative; }
+        .modal-close { position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; borderRadius: 50%; background: #fef3c7; color: #a16207; border: none; cursor: pointer; display: flex; alignItems: center; justifyContent: center; }
+        .modal-close:hover { background: #fcd34d; }
+        .modal h3 { fontSize: 24px; fontFamily: serif; color: #78350f; marginBottom: 16px; textTransform: capitalize; }
+        .path { color: #92400e; fontFamily: monospace; fontSize: 16px; lineHeight: 1.6; marginBottom: 16px; }
+        .explanation { color: #a16207; fontSize: 14px; lineHeight: 1.6; paddingTop: 16px; borderTop: 1px solid #fcd34d; }
+      `}</style>
 
-        <div className="p-4 border-b border-amber-200">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-amber-600" />
-            <input
-              type="text"
-              placeholder="Search roots..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-amber-200 rounded focus:outline-none focus:border-amber-400"
-            />
+      <div className="sidebar">
+        <div className="header">
+          <div className="title">Babel</div>
+          <div className="subtitle">Proto-Indo-European</div>
+        </div>
+        <div className="search-box">
+          <div style={{position:'relative'}}>
+            <Search size={16} style={{position:'absolute',left:12,top:10,color:'#d97706'}} />
+            <input type="text" placeholder="Search roots..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-          <select
-            value={filterLanguage}
-            onChange={(e) => setFilterLanguage(e.target.value)}
-            className="w-full mt-2 px-3 py-2 text-sm bg-white border border-amber-200 rounded focus:outline-none focus:border-amber-400"
-          >
+          <select value={filterLanguage} onChange={(e) => setFilterLanguage(e.target.value)} style={{marginTop:8}}>
             <option value="all">All Languages</option>
             <option value="english">English</option>
             <option value="french">French</option>
@@ -111,44 +128,24 @@ export default function Babel() {
             <option value="sanskrit">Sanskrit</option>
           </select>
         </div>
-
-        <div className="p-4 border-b border-amber-200 space-y-1">
-          <button
-            onClick={() => setActiveTab('roots')}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors ${
-              activeTab === 'roots' ? 'bg-amber-100 text-amber-900' : 'text-amber-800 hover:bg-amber-50'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            Roots
+        <div className="nav">
+          <button className={activeTab === 'roots' ? 'active' : ''} onClick={() => setActiveTab('roots')}>
+            <BookOpen size={16} /> Roots
           </button>
-          <button
-            onClick={() => setActiveTab('saved')}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors ${
-              activeTab === 'saved' ? 'bg-amber-100 text-amber-900' : 'text-amber-800 hover:bg-amber-50'
-            }`}
-          >
-            <Star className="w-4 h-4" />
-            Saved ({savedRoots.length})
+          <button className={activeTab === 'saved' ? 'active' : ''} onClick={() => setActiveTab('saved')}>
+            <Star size={16} /> Saved ({savedRoots.length})
           </button>
         </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div className="root-list">
           {displayRoots.map(root => (
-            <button
-              key={root.id}
-              onClick={() => setSelectedRoot(root)}
-              className={`w-full text-left p-3 rounded border transition-colors ${
-                selectedRoot?.id === root.id ? 'bg-amber-100 border-amber-300' : 'bg-white border-amber-200 hover:border-amber-300'
-              }`}
-            >
-              <div className="flex items-start justify-between">
+            <button key={root.id} className={`root-item ${selectedRoot?.id === root.id ? 'selected' : ''}`} onClick={() => setSelectedRoot(root)}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'start'}}>
                 <div>
-                  <div className="font-serif text-lg text-amber-900">{root.pie}</div>
-                  <div className="text-sm text-amber-700 mt-0.5">{root.meaning}</div>
+                  <div className="root-pie">{root.pie}</div>
+                  <div className="root-meaning">{root.meaning}</div>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); toggleSaveRoot(root.id) }} className="mt-1">
-                  <Star className={`w-4 h-4 ${savedRoots.includes(root.id) ? 'fill-amber-600 text-amber-600' : 'text-amber-300 hover:text-amber-400'}`} />
+                <button onClick={(e) => { e.stopPropagation(); toggleSaveRoot(root.id) }} style={{background:'none',border:'none',cursor:'pointer',marginTop:4}}>
+                  <Star size={16} fill={savedRoots.includes(root.id) ? '#d97706' : 'none'} color={savedRoots.includes(root.id) ? '#d97706' : '#fcd34d'} />
                 </button>
               </div>
             </button>
@@ -156,154 +153,122 @@ export default function Babel() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="main">
         {showPathPopup && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-8">
-            <div className="bg-white rounded-lg border-2 border-amber-300 shadow-2xl max-w-2xl w-full p-8 relative">
-              <button onClick={() => setShowPathPopup(null)} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center justify-center">
-                <X className="w-5 h-5" />
-              </button>
-              <h3 className="text-2xl font-serif text-amber-900 mb-4 capitalize">{showPathPopup}</h3>
-              <div className="text-amber-800 font-mono text-base leading-relaxed mb-4">
-                {selectedRoot?.descendants[showPathPopup]?.path}
-              </div>
-              <div className="text-amber-700 text-sm leading-relaxed border-t border-amber-200 pt-4">
-                {selectedRoot?.descendants[showPathPopup]?.explanation}
-              </div>
+          <div className="modal" onClick={() => setShowPathPopup(null)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <button className="modal-close" onClick={() => setShowPathPopup(null)}><X size={20} /></button>
+              <h3>{showPathPopup}</h3>
+              <div className="path">{selectedRoot?.descendants[showPathPopup]?.path}</div>
+              <div className="explanation">{selectedRoot?.descendants[showPathPopup]?.explanation}</div>
             </div>
           </div>
         )}
 
-        {activeTab === 'roots' && !selectedRoot && (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-center max-w-md">
-              <BookOpen className="w-16 h-16 mx-auto text-amber-300 mb-4" />
-              <h2 className="text-2xl font-serif text-amber-900 mb-2">Welcome to Babel</h2>
-              <p className="text-amber-700">Select a root from the sidebar to explore its evolution across Indo-European languages.</p>
+        {!selectedRoot && (
+          <div className="welcome">
+            <div>
+              <BookOpen size={64} color="#fcd34d" style={{margin:'0 auto 16px'}} />
+              <h2 style={{fontSize:24,fontFamily:'serif',color:'#78350f',marginBottom:8}}>Welcome to Babel</h2>
+              <p style={{color:'#a16207'}}>Select a root from the sidebar to explore its evolution.</p>
             </div>
           </div>
         )}
 
-        {activeTab === 'roots' && selectedRoot && (
-          <div className="max-w-4xl mx-auto p-8">
-            <div className="bg-white rounded-lg border border-amber-200 shadow-sm p-8">
-              <div className="flex items-start justify-between mb-6">
+        {selectedRoot && (
+          <div className="content">
+            <div className="card">
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:24}}>
                 <div>
-                  <h2 className="text-4xl font-serif text-amber-900 mb-2">{selectedRoot.pie}</h2>
-                  <p className="text-xl text-amber-700">{selectedRoot.meaning}</p>
-                  <span className="inline-block mt-2 px-3 py-1 text-xs bg-amber-100 text-amber-800 rounded-full">{selectedRoot.semantic}</span>
+                  <h2>{selectedRoot.pie}</h2>
+                  <p>{selectedRoot.meaning}</p>
+                  <span className="tag">{selectedRoot.semantic}</span>
                 </div>
-                <button onClick={() => setSelectedRoot(null)}>
-                  <X className="w-5 h-5 text-amber-500 hover:text-amber-700" />
+                <button onClick={() => setSelectedRoot(null)} style={{background:'none',border:'none',cursor:'pointer',color:'#d97706'}}>
+                  <X size={20} />
                 </button>
               </div>
 
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-amber-900 mb-6">Evolutionary Tree</h3>
-                <div className="flex flex-col items-center mb-8">
-                  <div className="px-6 py-3 bg-amber-200 border-2 border-amber-400 rounded-lg">
-                    <span className="text-2xl font-serif text-amber-900">{selectedRoot.pie}</span>
-                  </div>
-                  <div className="w-0.5 h-8 bg-amber-300"></div>
+              <div style={{marginBottom:32}}>
+                <h3 style={{fontSize:18,fontWeight:600,color:'#78350f',marginBottom:24}}>Evolutionary Tree</h3>
+                <div className="tree-root">
+                  <div className="tree-node">{selectedRoot.pie}</div>
+                  <div className="tree-line"></div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-8">
-                  <div className="flex flex-col items-center">
-                    <div className="px-4 py-2 bg-amber-100 border border-amber-300 rounded text-sm font-semibold text-amber-900 mb-4">Germanic</div>
-                    <div className="w-0.5 h-6 bg-amber-300"></div>
-                    <div className="space-y-4 w-full">
-                      <div className="p-3 bg-white border border-amber-200 rounded relative">
-                        <div className="text-xs text-amber-700 mb-1">English</div>
-                        <div className="font-serif text-lg text-amber-900">{selectedRoot.descendants.english.word}</div>
-                        <button onClick={() => setShowPathPopup('english')} className="absolute top-2 right-2 w-5 h-5 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center justify-center text-xs font-bold">?</button>
+                <div className="branches">
+                  <div className="branch">
+                    <div className="branch-label">Germanic</div>
+                    <div className="tree-line" style={{height:24}}></div>
+                    <div className="lang-card">
+                      <div className="lang-name">English</div>
+                      <div className="lang-word">{selectedRoot.descendants.english.word}</div>
+                      <button className="help-btn" onClick={() => setShowPathPopup('english')}>?</button>
+                    </div>
+                  </div>
+
+                  <div className="branch">
+                    <div className="branch-label">Italic</div>
+                    <div className="tree-line" style={{height:24}}></div>
+                    <div style={{width:'100%'}}>
+                      <div className="lang-card" style={{marginBottom:16}}>
+                        <div className="lang-name">Latin</div>
+                        <div className="lang-word">{selectedRoot.descendants.latin.word}</div>
+                        <button className="help-btn" onClick={() => setShowPathPopup('latin')}>?</button>
+                      </div>
+                      <div className="lang-card" style={{marginLeft:24,background:'#fef3c7'}}>
+                        <div className="lang-name">French</div>
+                        <div className="lang-word">{selectedRoot.descendants.french.word}</div>
+                        <button className="help-btn" onClick={() => setShowPathPopup('french')}>?</button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-center">
-                    <div className="px-4 py-2 bg-amber-100 border border-amber-300 rounded text-sm font-semibold text-amber-900 mb-4">Italic</div>
-                    <div className="w-0.5 h-6 bg-amber-300"></div>
-                    <div className="space-y-4 w-full">
-                      <div className="p-3 bg-white border border-amber-200 rounded relative">
-                        <div className="text-xs text-amber-700 mb-1">Latin</div>
-                        <div className="font-serif text-lg text-amber-900">{selectedRoot.descendants.latin.word}</div>
-                        <button onClick={() => setShowPathPopup('latin')} className="absolute top-2 right-2 w-5 h-5 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center justify-center text-xs font-bold">?</button>
-                      </div>
-                      <div className="ml-6 p-3 bg-amber-50 border border-amber-300 rounded relative">
-                        <div className="text-xs text-amber-700 mb-1">French</div>
-                        <div className="font-serif text-lg text-amber-900">{selectedRoot.descendants.french.word}</div>
-                        <button onClick={() => setShowPathPopup('french')} className="absolute top-2 right-2 w-5 h-5 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center justify-center text-xs font-bold">?</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-center">
-                    <div className="px-4 py-2 bg-amber-100 border border-amber-300 rounded text-sm font-semibold text-amber-900 mb-4">Hellenic</div>
-                    <div className="w-0.5 h-6 bg-amber-300"></div>
-                    <div className="space-y-4 w-full">
-                      <div className="p-3 bg-white border border-amber-200 rounded relative">
-                        <div className="text-xs text-amber-700 mb-1">Greek</div>
-                        <div className="font-serif text-lg text-amber-900">{selectedRoot.descendants.greek.word}</div>
-                        <button onClick={() => setShowPathPopup('greek')} className="absolute top-2 right-2 w-5 h-5 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center justify-center text-xs font-bold">?</button>
-                      </div>
+                  <div className="branch">
+                    <div className="branch-label">Hellenic</div>
+                    <div className="tree-line" style={{height:24}}></div>
+                    <div className="lang-card">
+                      <div className="lang-name">Greek</div>
+                      <div className="lang-word">{selectedRoot.descendants.greek.word}</div>
+                      <button className="help-btn" onClick={() => setShowPathPopup('greek')}>?</button>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-8 mt-8">
-                  <div className="flex flex-col items-center">
-                    <div className="px-4 py-2 bg-amber-100 border border-amber-300 rounded text-sm font-semibold text-amber-900 mb-4">Balto-Slavic</div>
-                    <div className="w-0.5 h-6 bg-amber-300"></div>
-                    <div className="space-y-4 w-full">
-                      <div className="p-3 bg-white border border-amber-200 rounded relative">
-                        <div className="text-xs text-amber-700 mb-1">Russian</div>
-                        <div className="font-serif text-lg text-amber-900">{selectedRoot.descendants.russian.word}</div>
-                        <button onClick={() => setShowPathPopup('russian')} className="absolute top-2 right-2 w-5 h-5 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center justify-center text-xs font-bold">?</button>
-                      </div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(2, 1fr)',gap:32,marginTop:32}}>
+                  <div className="branch">
+                    <div className="branch-label">Balto-Slavic</div>
+                    <div className="tree-line" style={{height:24}}></div>
+                    <div className="lang-card">
+                      <div className="lang-name">Russian</div>
+                      <div className="lang-word">{selectedRoot.descendants.russian.word}</div>
+                      <button className="help-btn" onClick={() => setShowPathPopup('russian')}>?</button>
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-center">
-                    <div className="px-4 py-2 bg-amber-100 border border-amber-300 rounded text-sm font-semibold text-amber-900 mb-4">Indo-Iranian</div>
-                    <div className="w-0.5 h-6 bg-amber-300"></div>
-                    <div className="space-y-4 w-full">
-                      <div className="p-3 bg-white border border-amber-200 rounded relative">
-                        <div className="text-xs text-amber-700 mb-1">Sanskrit</div>
-                        <div className="font-serif text-lg text-amber-900">{selectedRoot.descendants.sanskrit.word}</div>
-                        <button onClick={() => setShowPathPopup('sanskrit')} className="absolute top-2 right-2 w-5 h-5 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center justify-center text-xs font-bold">?</button>
+                  <div className="branch">
+                    <div className="branch-label">Indo-Iranian</div>
+                    <div className="tree-line" style={{height:24}}></div>
+                    <div style={{width:'100%'}}>
+                      <div className="lang-card" style={{marginBottom:16}}>
+                        <div className="lang-name">Sanskrit</div>
+                        <div className="lang-word">{selectedRoot.descendants.sanskrit.word}</div>
+                        <button className="help-btn" onClick={() => setShowPathPopup('sanskrit')}>?</button>
                       </div>
-                      <div className="ml-6 p-3 bg-amber-50 border border-amber-300 rounded relative">
-                        <div className="text-xs text-amber-700 mb-1">Urdu</div>
-                        <div className="font-serif text-lg text-amber-900">{selectedRoot.descendants.urdu.word}</div>
-                        <button onClick={() => setShowPathPopup('urdu')} className="absolute top-2 right-2 w-5 h-5 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center justify-center text-xs font-bold">?</button>
+                      <div className="lang-card" style={{marginLeft:24,background:'#fef3c7'}}>
+                        <div className="lang-name">Urdu</div>
+                        <div className="lang-word">{selectedRoot.descendants.urdu.word}</div>
+                        <button className="help-btn" onClick={() => setShowPathPopup('urdu')}>?</button>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="pt-6 border-t border-amber-200">
-                <h3 className="text-sm font-semibold text-amber-900 mb-2">Modern English Derivatives</h3>
-                <p className="text-amber-800">{selectedRoot.derivatives}</p>
+              <div style={{paddingTop:24,borderTop:'1px solid #fcd34d'}}>
+                <h3 style={{fontSize:14,fontWeight:600,color:'#78350f',marginBottom:8}}>Modern English Derivatives</h3>
+                <p style={{color:'#92400e'}}>{selectedRoot.derivatives}</p>
               </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'saved' && savedRoots.length === 0 && (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-center max-w-md">
-              <Star className="w-16 h-16 mx-auto text-amber-300 mb-4" />
-              <h2 className="text-2xl font-serif text-amber-900 mb-2">No saved roots yet</h2>
-              <p className="text-amber-700">Click the star icon on any root to save it for quick access.</p>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'saved' && savedRoots.length > 0 && !selectedRoot && (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-center max-w-md">
-              <p className="text-amber-700">Select a saved root to view details</p>
             </div>
           </div>
         )}
